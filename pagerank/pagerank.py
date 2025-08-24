@@ -57,7 +57,26 @@ def transition_model(corpus, page, damping_factor):
     linked to by `page`. With probability `1 - damping_factor`, choose
     a link at random chosen from all pages in the corpus.
     """
-    raise NotImplementedError
+    
+    pages_to_choose_from_current = corpus[page]
+    pages_to_choose_from_all = set(corpus.keys())
+
+    # If no outgoing links, treat as linking to all pages
+    if not pages_to_choose_from_current:
+        return {page: 1 / len(pages_to_choose_from_all) for page in pages_to_choose_from_all}
+
+    probability_from_current = damping_factor / len(pages_to_choose_from_current)
+    probability_from_all = (1 - damping_factor) / len(pages_to_choose_from_all)
+
+    # combine both probabilities
+    probabilities = {}
+    for page in pages_to_choose_from_all:
+        probabilities[page] = probability_from_all
+        if page in pages_to_choose_from_current:
+            probabilities[page] += probability_from_current
+    
+    return probabilities
+
 
 
 def sample_pagerank(corpus, damping_factor, n):
@@ -69,7 +88,19 @@ def sample_pagerank(corpus, damping_factor, n):
     their estimated PageRank value (a value between 0 and 1). All
     PageRank values should sum to 1.
     """
-    raise NotImplementedError
+    # Start with a random page
+    current_page = random.choice(list(corpus.keys()))
+    page_counts = {page: 0 for page in corpus.keys()}
+    page_counts[current_page] += 1
+
+    for _ in range(1, n):
+        probabilities = transition_model(corpus, current_page, damping_factor)
+        pages = list(probabilities.keys())
+        weights = list(probabilities.values())
+        current_page = random.choices(pages, weights=weights, k=1)[0]
+        page_counts[current_page] += 1
+
+    return {page: count / n for page, count in page_counts.items()}
 
 
 def iterate_pagerank(corpus, damping_factor):
@@ -81,7 +112,39 @@ def iterate_pagerank(corpus, damping_factor):
     their estimated PageRank value (a value between 0 and 1). All
     PageRank values should sum to 1.
     """
-    raise NotImplementedError
+    # initialization
+    N = len(corpus)
+    page_ranks = {page: 1 / N for page in corpus.keys()}
+
+    converged = False
+
+    while not converged:
+        # calculate new ranks
+        new_ranks = {}
+        for page in corpus.keys():
+            # use formula: pagerank(p) = (1 - d) / N + d * sum(pagerank(i) / NumLinks(i) for all i linking to p)
+            new_rank = (1 - damping_factor) / N
+            for possible_linking_page in corpus.keys():
+                if page in corpus[possible_linking_page]:
+                    num_links = len(corpus[possible_linking_page])
+                    new_rank += damping_factor * (page_ranks[possible_linking_page] / num_links)
+                # if a page has no outgoing links, treat it as having links to all pages (including itself)
+                if not corpus[possible_linking_page]:
+                    new_rank += damping_factor * (page_ranks[possible_linking_page] / N)
+            new_ranks[page] = new_rank
+
+        # store the page ranks to check for convergence later
+        old_ranks = page_ranks
+        page_ranks = new_ranks
+
+        # check for convergence
+        converged = True
+        for page in corpus.keys():
+            if abs(page_ranks[page] - old_ranks[page]) > 0.001:
+                converged = False
+                break
+    
+    return page_ranks
 
 
 if __name__ == "__main__":
