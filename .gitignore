@@ -71,3 +71,7 @@ coverage.xml
 # Local env files
 .env
 .env.*
+
+# Ignore the GTSRB dataset files
+traffic/gtsrb.zip
+traffic/gtsrb/
